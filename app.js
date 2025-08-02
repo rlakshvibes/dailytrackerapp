@@ -1,6 +1,5 @@
 // Firebase Configuration
 // TODO: Replace with your Firebase config
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDbrboEJx7hOFSRO0l7QbJAJkjejoEUpb4",
   authDomain: "daily-tracker-f025c.firebaseapp.com",
@@ -11,15 +10,9 @@ const firebaseConfig = {
   measurementId: "G-1TDE6QWYB4"
 };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-
-
 // Google Apps Script Web App URL
 // TODO: Replace with your deployed Apps Script URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_MH3JqwQ5pzd3qnHg45CbHX0ZmTaV_4RZCHGgQx4W-Ogn39rDhM9OmIKLdQ65fWJX/exec
-";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_MH3JqwQ5pzd3qnHg45CbHX0ZmTaV_4RZCHGgQx4W-Ogn39rDhM9OmIKLdQ65fWJX/exec";
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
@@ -397,4 +390,4 @@ if ('serviceWorker' in navigator) {
                 console.log('SW registration failed: ', registrationError);
             });
     });
-} 
+}
