@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Habit Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="screen hidden">
+        <div class="container">
+            <div class="auth-card">
+                <h1>Daily Habit Tracker</h1>
+                <p>Track your daily micro habits and build better routines</p>
+                <button id="google-signin-btn" class="btn btn-primary">
+                    <svg class="google-icon" viewBox="0 0 24 24">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+                <div id="auth-error" class="error-message hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="app-screen" class="screen hidden">
+        <header class="app-header">
+            <div class="header-content">
+                <h2>Daily Habits</h2>
+                <div class="user-info">
+                    <img id="user-avatar" class="user-avatar" src="" alt="User">
+                    <span id="user-name"></span>
+                </div>
+                <button id="signout-btn" class="btn btn-text">Sign Out</button>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <div class="container">
+                <!-- Daily Form -->
+                <div id="daily-form" class="form-section">
+                    <div class="date-header">
+                        <h3 id="current-date">Today's Habits</h3>
+                        <span id="submission-status" class="status-badge"></span>
+                    </div>
+
+                    <form id="habit-form">
+                        <div class="form-group">
+                            <label for="wake-time">What time did you wake up?</label>
+                            <input type="time" id="wake-time" name="wakeTime" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Did you drink caffeine?</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="caffeine" value="yes" required>
+                                    <span class="radio-custom"></span>
+                                    Yes
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="caffeine" value="no" required>
+                                    <span class="radio-custom"></span>
+                                    No
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Did you have a bowel movement?</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="bowelMovement" value="yes" required>
+                                    <span class="radio-custom"></span>
+                                    Yes
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="bowelMovement" value="no" required>
+                                    <span class="radio-custom"></span>
+                                    No
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Did you exercise?</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="exercise" value="yes" required>
+                                    <span class="radio-custom"></span>
+                                    Yes
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="exercise" value="no" required>
+                                    <span class="radio-custom"></span>
+                                    No
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Did you have a headache?</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="headache" value="yes" required>
+                                    <span class="radio-custom"></span>
+                                    Yes
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="headache" value="no" required>
+                                    <span class="radio-custom"></span>
+                                    No
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="water-intake">How much water did you drink? (glasses)</label>
+                            <input type="number" id="water-intake" name="waterIntake" min="0" max="20" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sleep-hours">How many hours did you sleep?</label>
+                            <input type="number" id="sleep-hours" name="sleepHours" min="0" max="24" step="0.5" required>
+                        </div>
+
+                        <button type="submit" id="submit-btn" class="btn btn-primary btn-full">
+                            Submit Today's Data
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Daily Summary -->
+                <div id="daily-summary" class="summary-section hidden">
+                    <h3>Today's Summary</h3>
+                    <div id="summary-content" class="summary-content">
+                        <!-- Summary will be populated by JavaScript -->
+                    </div>
+                    <div class="summary-actions">
+                        <button id="view-past-data-btn" class="btn btn-secondary">View Past Data</button>
+                        <button id="new-entry-btn" class="btn btn-primary">New Entry</button>
+                    </div>
+                </div>
+
+                <!-- Past Data View -->
+                <div id="past-data-view" class="past-data-section hidden">
+                    <div class="past-data-header">
+                        <h3>Your Past Data</h3>
+                        <button id="back-to-form-btn" class="btn btn-text">← Back</button>
+                    </div>
+                    <div id="past-data-content" class="past-data-content">
+                        <!-- Past data will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Error</h3>
+            <p id="error-message"></p>
+            <button id="close-error-btn" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    
+    <!-- App Scripts -->
+    <script src="app.js"></script>
+</body>
+</html> 
