@@ -14,7 +14,7 @@ const firebaseConfig = {
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
-</script>
+
 
 // Google Apps Script Web App URL
 // TODO: Replace with your deployed Apps Script URL
