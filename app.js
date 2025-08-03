@@ -10,7 +10,7 @@ const firebaseConfig = {
 };
 
 // Google Apps Script Web App URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUzVMSZJZUkQqmKagBMMMqzmhk_B_7x4uwOvryryY0-fjybUkCKGbHgqEafhxbmMnQ/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnwrqlsSXaoajEDKUK-8DAYTQYO9AOgVYuLwH7Fa3_TW_gkdwxwn7yBVV9tQy5UtiS/exec";
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
