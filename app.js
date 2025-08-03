@@ -184,26 +184,56 @@ async function handleFormSubmit(e) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
 
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = APPS_SCRIPT_URL;
+        form.target = 'hidden-iframe';
+        
+        // Add data as hidden fields
+        Object.keys(data).forEach(key => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = data[key];
+            form.appendChild(input);
         });
-
-        const result = await response.json();
-
-        if (result.success) {
-            todayData = data;
-            showSummary(data);
-        } else {
-            throw new Error(result.error || 'Failed to submit data');
-        }
+        
+        // Create hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.name = 'hidden-iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        // Handle response
+        iframe.onload = function() {
+            try {
+                const response = iframe.contentDocument.body.textContent;
+                const result = JSON.parse(response);
+                
+                if (result.success) {
+                    todayData = data;
+                    showSummary(data);
+                } else {
+                    throw new Error(result.error || 'Failed to submit data');
+                }
+            } catch (error) {
+                console.error('Submission error:', error);
+                showError('Failed to submit data. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Today\'s Data';
+                document.body.removeChild(iframe);
+                document.body.removeChild(form);
+            }
+        };
+        
+        document.body.appendChild(form);
+        form.submit();
+        
     } catch (error) {
         console.error('Submission error:', error);
         showError('Failed to submit data. Please try again.');
-    } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Today\'s Data';
     }
