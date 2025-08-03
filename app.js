@@ -10,7 +10,7 @@ const firebaseConfig = {
 };
 
 // Google Apps Script Web App URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnXNo3ioNBRYQuXfnNmbI98aavEH-0W176-H9qwKb8biEksZ6_6TeKv9lh113dFCA9/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUzVMSZJZUkQqmKagBMMMqzmhk_B_7x4uwOvryryY0-fjybUkCKGbHgqEafhxbmMnQ/exec";
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
@@ -147,40 +147,15 @@ function updateUserInfo() {
 async function checkTodaySubmission() {
     try {
         const today = new Date().toISOString().split('T')[0];
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`);
+        const result = await response.json();
         
-        // Try with proxy first
-        try {
-            const targetUrl = `${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`;
-            const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
-            
-            const response = await fetch(proxyUrl);
-            const result = await response.json();
-            
-            if (result.exists) {
-                todayData = result.data;
-                showTodaySubmitted();
-                return;
-            }
-        } catch (proxyError) {
-            console.log('Proxy failed, trying direct...');
+        if (result.exists) {
+            todayData = result.data;
+            showTodaySubmitted();
+        } else {
+            showForm();
         }
-        
-        // Fallback to direct request
-        try {
-            const response = await fetch(`${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`);
-            const result = await response.json();
-            
-            if (result.exists) {
-                todayData = result.data;
-                showTodaySubmitted();
-                return;
-            }
-        } catch (directError) {
-            console.log('Direct request also failed');
-        }
-        
-        // If all else fails, show form
-        showForm();
     } catch (error) {
         console.error('Error checking today submission:', error);
         showForm(); // Fallback to showing form
@@ -209,8 +184,15 @@ async function handleFormSubmit(e) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
 
-        // Try multiple submission methods
-        let result = await tryMultipleSubmissionMethods(data);
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
 
         if (result.success) {
             todayData = data;
@@ -225,151 +207,6 @@ async function handleFormSubmit(e) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Today\'s Data';
     }
-}
-
-// Try multiple submission methods
-async function tryMultipleSubmissionMethods(data) {
-    const methods = [
-        () => submitDataJSONP(data),
-        () => submitDataForm(data),
-        () => submitDataFetch(data),
-        () => submitDataDirect(data)
-    ];
-
-    for (let i = 0; i < methods.length; i++) {
-        try {
-            console.log(`Trying submission method ${i + 1}...`);
-            const result = await methods[i]();
-            console.log(`Method ${i + 1} succeeded:`, result);
-            return result;
-        } catch (error) {
-            console.log(`Method ${i + 1} failed:`, error.message);
-            if (i === methods.length - 1) {
-                throw error; // All methods failed
-            }
-        }
-    }
-}
-
-// Method 1: JSONP submission
-function submitDataJSONP(data) {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        const callbackName = 'jsonpCallback_' + Date.now();
-        
-        window[callbackName] = function(result) {
-            delete window[callbackName];
-            document.body.removeChild(script);
-            resolve(result);
-        };
-        
-        const targetUrl = `${APPS_SCRIPT_URL}?callback=${callbackName}&data=${encodeURIComponent(JSON.stringify(data))}`;
-        const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
-        
-        script.src = proxyUrl;
-        script.onerror = () => {
-            delete window[callbackName];
-            document.body.removeChild(script);
-            reject(new Error('JSONP failed'));
-        };
-        
-        document.body.appendChild(script);
-        
-        setTimeout(() => {
-            delete window[callbackName];
-            if (document.body.contains(script)) {
-                document.body.removeChild(script);
-            }
-            reject(new Error('JSONP timeout'));
-        }, 15000);
-    });
-}
-
-// Method 2: Form submission
-function submitDataForm(data) {
-    return new Promise((resolve, reject) => {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = APPS_SCRIPT_URL;
-        form.target = 'hidden-iframe';
-        
-        const iframe = document.createElement('iframe');
-        iframe.name = 'hidden-iframe';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        
-        Object.keys(data).forEach(key => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = data[key];
-            form.appendChild(input);
-        });
-        
-        iframe.onload = function() {
-            try {
-                const response = iframe.contentDocument.body.textContent;
-                const result = JSON.parse(response);
-                document.body.removeChild(iframe);
-                document.body.removeChild(form);
-                resolve(result);
-            } catch (error) {
-                document.body.removeChild(iframe);
-                document.body.removeChild(form);
-                reject(new Error('Form submission failed'));
-            }
-        };
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        setTimeout(() => {
-            if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe);
-            }
-            if (document.body.contains(form)) {
-                document.body.removeChild(form);
-            }
-            reject(new Error('Form submission timeout'));
-        }, 15000);
-    });
-}
-
-// Method 3: Fetch with proxy
-async function submitDataFetch(data) {
-    const targetUrl = APPS_SCRIPT_URL;
-    const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
-    
-    const response = await fetch(proxyUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    });
-    
-    if (!response.ok) {
-        throw new Error('Fetch failed');
-    }
-    
-    return await response.json();
-}
-
-// Method 4: Direct submission (no proxy)
-async function submitDataDirect(data) {
-    const response = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    });
-    
-    if (!response.ok) {
-        throw new Error('Direct fetch failed');
-    }
-    
-    return await response.json();
 }
 
 // Show form
@@ -430,10 +267,7 @@ function showSummary(data) {
 // Show past data
 async function showPastData() {
     try {
-        const targetUrl = `${APPS_SCRIPT_URL}?action=getPastData&email=${encodeURIComponent(currentUser.email)}`;
-        const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
-        
-        const response = await fetch(proxyUrl);
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getPastData&email=${encodeURIComponent(currentUser.email)}`);
         const result = await response.json();
 
         if (result.success) {
