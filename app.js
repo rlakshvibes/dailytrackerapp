@@ -147,18 +147,40 @@ function updateUserInfo() {
 async function checkTodaySubmission() {
     try {
         const today = new Date().toISOString().split('T')[0];
-        const targetUrl = `${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
         
-        const response = await fetch(proxyUrl);
-        const result = await response.json();
-        
-        if (result.exists) {
-            todayData = result.data;
-            showTodaySubmitted();
-        } else {
-            showForm();
+        // Try with proxy first
+        try {
+            const targetUrl = `${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`;
+            const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
+            
+            const response = await fetch(proxyUrl);
+            const result = await response.json();
+            
+            if (result.exists) {
+                todayData = result.data;
+                showTodaySubmitted();
+                return;
+            }
+        } catch (proxyError) {
+            console.log('Proxy failed, trying direct...');
         }
+        
+        // Fallback to direct request
+        try {
+            const response = await fetch(`${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`);
+            const result = await response.json();
+            
+            if (result.exists) {
+                todayData = result.data;
+                showTodaySubmitted();
+                return;
+            }
+        } catch (directError) {
+            console.log('Direct request also failed');
+        }
+        
+        // If all else fails, show form
+        showForm();
     } catch (error) {
         console.error('Error checking today submission:', error);
         showForm(); // Fallback to showing form
@@ -210,7 +232,8 @@ async function tryMultipleSubmissionMethods(data) {
     const methods = [
         () => submitDataJSONP(data),
         () => submitDataForm(data),
-        () => submitDataFetch(data)
+        () => submitDataFetch(data),
+        () => submitDataDirect(data)
     ];
 
     for (let i = 0; i < methods.length; i++) {
@@ -315,7 +338,7 @@ function submitDataForm(data) {
 // Method 3: Fetch with proxy
 async function submitDataFetch(data) {
     const targetUrl = APPS_SCRIPT_URL;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+    const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
     
     const response = await fetch(proxyUrl, {
         method: 'POST',
@@ -327,6 +350,23 @@ async function submitDataFetch(data) {
     
     if (!response.ok) {
         throw new Error('Fetch failed');
+    }
+    
+    return await response.json();
+}
+
+// Method 4: Direct submission (no proxy)
+async function submitDataDirect(data) {
+    const response = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+        throw new Error('Direct fetch failed');
     }
     
     return await response.json();
@@ -391,7 +431,7 @@ function showSummary(data) {
 async function showPastData() {
     try {
         const targetUrl = `${APPS_SCRIPT_URL}?action=getPastData&email=${encodeURIComponent(currentUser.email)}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
         
         const response = await fetch(proxyUrl);
         const result = await response.json();
