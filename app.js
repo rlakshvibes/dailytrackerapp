@@ -12,7 +12,7 @@ const firebaseConfig = {
 
 // Google Apps Script Web App URL
 // TODO: Replace with your deployed Apps Script URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_MH3JqwQ5pzd3qnHg45CbHX0ZmTaV_4RZCHGgQx4W-Ogn39rDhM9OmIKLdQ65fWJX/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnXNo3ioNBRYQuXfnNmbI98aavEH-0W176-H9qwKb8biEksZ6_6TeKv9lh113dFCA9/exec";
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
