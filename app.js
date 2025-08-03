@@ -149,7 +149,10 @@ function updateUserInfo() {
 async function checkTodaySubmission() {
     try {
         const today = new Date().toISOString().split('T')[0];
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`);
+        const targetUrl = `${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        
+        const response = await fetch(proxyUrl);
         const result = await response.json();
         
         if (result.exists) {
@@ -210,21 +213,40 @@ function submitDataJSONP(data) {
         const script = document.createElement('script');
         const callbackName = 'jsonpCallback_' + Date.now();
         
+        console.log('Starting JSONP request with data:', data);
+        
         window[callbackName] = function(result) {
+            console.log('JSONP callback received:', result);
             delete window[callbackName];
             document.body.removeChild(script);
             resolve(result);
         };
         
-        const url = `${APPS_SCRIPT_URL}?callback=${callbackName}&data=${encodeURIComponent(JSON.stringify(data))}`;
-        script.src = url;
-        document.body.appendChild(script);
+        // Use CORS proxy for JSONP
+        const targetUrl = `${APPS_SCRIPT_URL}?callback=${callbackName}&data=${encodeURIComponent(JSON.stringify(data))}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
         
-        setTimeout(() => {
+        console.log('JSONP URL:', proxyUrl);
+        
+        script.src = proxyUrl;
+        script.onerror = function() {
+            console.error('Script load error');
             delete window[callbackName];
             document.body.removeChild(script);
-            reject(new Error('Timeout'));
-        }, 10000);
+            reject(new Error('Script load failed'));
+        };
+        
+        document.body.appendChild(script);
+        
+        // Increase timeout to 30 seconds
+        setTimeout(() => {
+            console.error('JSONP timeout after 30 seconds');
+            delete window[callbackName];
+            if (document.body.contains(script)) {
+                document.body.removeChild(script);
+            }
+            reject(new Error('Timeout - Apps Script not responding'));
+        }, 30000);
     });
 }
 
@@ -286,7 +308,10 @@ function showSummary(data) {
 // Show past data
 async function showPastData() {
     try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=getPastData&email=${encodeURIComponent(currentUser.email)}`);
+        const targetUrl = `${APPS_SCRIPT_URL}?action=getPastData&email=${encodeURIComponent(currentUser.email)}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        
+        const response = await fetch(proxyUrl);
         const result = await response.json();
 
         if (result.success) {
@@ -323,75 +348,4 @@ function displayPastData(data) {
             <div class="data-grid">
                 <div class="data-item">
                     <span class="data-label">Wake Time:</span>
-                    <span class="data-value">${entry.wakeTime}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Caffeine:</span>
-                    <span class="data-value">${entry.caffeine === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Bowel Movement:</span>
-                    <span class="data-value">${entry.bowelMovement === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Exercise:</span>
-                    <span class="data-value">${entry.exercise === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Headache:</span>
-                    <span class="data-value">${entry.headache === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Water Intake:</span>
-                    <span class="data-value">${entry.waterIntake} glasses</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Sleep Hours:</span>
-                    <span class="data-value">${entry.sleepHours} hours</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
-
-    pastDataContent.innerHTML = dataHTML;
-}
-
-// Error handling
-function showError(message) {
-    errorMessage.textContent = message;
-    errorModal.classList.remove('hidden');
-}
-
-function hideErrorModal() {
-    errorModal.classList.add('hidden');
-}
-
-// TODO: Add analytics and insights functionality
-// This section can be extended to show trends, charts, and insights
-function showAnalytics() {
-    // Future implementation for trend analysis
-    // - Sleep pattern analysis
-    // - Water intake trends
-    // - Exercise consistency
-    // - Headache frequency
-    // - Caffeine impact analysis
-}
-
-// TODO: Add data export functionality
-function exportData() {
-    // Future implementation for data export
-    // - CSV export
-    // - PDF reports
-    // - Data backup
-}
-
-// TODO: Add habit customization
-function customizeHabits() {
-    // Future implementation for customizing habit questions
-    // - Add/remove questions
-    // - Change question types
-    // - Set reminders
-}
-
-// Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', initApp);
+                    <span class="data
