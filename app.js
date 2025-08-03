@@ -1,19 +1,19 @@
 // Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDbrboEJx7hOFSRO0l7QbJAJkjejoEUpb4",
-  authDomain: "daily-tracker-f025c.firebaseapp.com",
-  projectId: "daily-tracker-f025c",
-  storageBucket: "daily-tracker-f025c.firebasestorage.app",
-  messagingSenderId: "790448833460",
-  appId: "1:790448833460:web:a327ebdf2d77d6f22228e1",
-  measurementId: "G-1TDE6QWYB4"
+    apiKey: "AIzaSyDbrboEJx7hOFSRO0l7QbJAJkjejoEUpb4",
+    authDomain: "daily-tracker-f025c.firebaseapp.com",
+    projectId: "daily-tracker-f025c",
+    storageBucket: "daily-tracker-f025c.firebasestorage.app",
+    messagingSenderId: "790448833460",
+    appId: "1:790448833460:web:a327ebdf2d77d6f22228e1",
+    measurementId: "G-1TDE6QWYB4"
 };
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnwrqlsSXaoajEDKUK-8DAYTQYO9AOgVYuLwH7Fa3_TW_gkdwxwn7yBVV9tQy5UtiS/exec";
-
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
+// DOM Elements
 const loadingScreen = document.getElementById('loading-screen');
 const authScreen = document.getElementById('auth-screen');
 const appScreen = document.getElementById('app-screen');
@@ -22,41 +22,100 @@ const signoutBtn = document.getElementById('signout-btn');
 const authError = document.getElementById('auth-error');
 const userAvatar = document.getElementById('user-avatar');
 const userName = document.getElementById('user-name');
-const currentDate = document.getElementById('current-date');
-const submissionStatus = document.getElementById('submission-status');
-const habitForm = document.getElementById('habit-form');
-const submitBtn = document.getElementById('submit-btn');
-const dailyForm = document.getElementById('daily-form');
-const dailySummary = document.getElementById('daily-summary');
+const greetingText = document.getElementById('greeting-text');
+const startBtn = document.getElementById('start-btn');
+const questionScreen = document.getElementById('question-screen');
+const progressFill = document.getElementById('progress-fill');
+const questionText = document.getElementById('question-text');
+const answerBubbles = document.getElementById('answer-bubbles');
+const summaryScreen = document.getElementById('summary-screen');
 const summaryContent = document.getElementById('summary-content');
 const viewPastDataBtn = document.getElementById('view-past-data-btn');
 const newEntryBtn = document.getElementById('new-entry-btn');
-const pastDataView = document.getElementById('past-data-view');
+const pastDataScreen = document.getElementById('past-data-screen');
 const pastDataContent = document.getElementById('past-data-content');
-const backToFormBtn = document.getElementById('back-to-form-btn');
+const backToSummaryBtn = document.getElementById('back-to-summary-btn');
 const errorModal = document.getElementById('error-modal');
 const errorMessage = document.getElementById('error-message');
 const closeErrorBtn = document.getElementById('close-error-btn');
 
+// App State
 let currentUser = null;
-let todayData = null;
+let currentAnswers = {};
+let currentQuestionIndex = 0;
 let pastData = [];
 
-function initApp() {
-    const today = new Date();
-    currentDate.textContent = today.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
+// Wellness Questions (curated for daily health tracking)
+const wellnessQuestions = [
+    {
+        id: 'mood',
+        text: "How are you feeling today?",
+        type: 'bubble',
+        options: ['Great! 😊', 'Good 🙂', 'Okay 😐', 'Not great 😔', 'Terrible 😢']
+    },
+    {
+        id: 'sleep_quality',
+        text: "How well did you sleep last night?",
+        type: 'bubble',
+        options: ['Excellent 😴', 'Good 😊', 'Fair 😐', 'Poor 😫', 'Terrible 😵']
+    },
+    {
+        id: 'water_intake',
+        text: "How much water have you drunk today?",
+        type: 'bubble',
+        options: ['8+ glasses 💧', '6-7 glasses 💧', '4-5 glasses 💧', '2-3 glasses 💧', 'Less than 2 glasses 💧']
+    },
+    {
+        id: 'exercise',
+        text: "Did you exercise today?",
+        type: 'bubble',
+        options: ['Yes, intense workout 💪', 'Yes, moderate exercise 🏃', 'Yes, light activity 🚶', 'No, but I will later 📅', 'No, not today 😴']
+    },
+    {
+        id: 'nutrition',
+        text: "How healthy was your eating today?",
+        type: 'bubble',
+        options: ['Very healthy 🥗', 'Mostly healthy 🥑', 'Mixed 🍎', 'Not very healthy 🍕', 'Unhealthy 🍰']
+    },
+    {
+        id: 'stress_level',
+        text: "How stressed do you feel right now?",
+        type: 'bubble',
+        options: ['Very relaxed 😌', 'Calm 😊', 'Slightly stressed 😐', 'Stressed 😰', 'Very stressed 😱']
+    },
+    {
+        id: 'productivity',
+        text: "How productive were you today?",
+        type: 'bubble',
+        options: ['Very productive ⚡', 'Productive ✅', 'Somewhat productive 📝', 'Not very productive 😴', 'Unproductive 😵']
+    },
+    {
+        id: 'social_connection',
+        text: "How connected do you feel to others today?",
+        type: 'bubble',
+        options: ['Very connected ❤️', 'Connected 💕', 'Somewhat connected 🤝', 'A bit isolated 😔', 'Very isolated 😢']
+    },
+    {
+        id: 'gratitude',
+        text: "What are you grateful for today?",
+        type: 'bubble',
+        options: ['Family & friends 👨‍👩‍👧‍👦', 'Health & wellness 💚', 'Work & achievements 🎯', 'Simple pleasures 🌟', 'Everything 🙏']
+    },
+    {
+        id: 'tomorrow_goal',
+        text: "What's your main goal for tomorrow?",
+        type: 'bubble',
+        options: ['Exercise & fitness 💪', 'Healthy eating 🥗', 'Better sleep 😴', 'Work/study focus 📚', 'Self-care & relaxation 🧘']
+    }
+];
 
+function initApp() {
     auth.onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
             showAppScreen();
             updateUserInfo();
-            checkTodaySubmission();
+            setGreeting();
         } else {
             currentUser = null;
             showAuthScreen();
@@ -70,10 +129,10 @@ function initApp() {
 function setupEventListeners() {
     googleSigninBtn.addEventListener('click', signInWithGoogle);
     signoutBtn.addEventListener('click', signOut);
-    habitForm.addEventListener('submit', handleFormSubmit);
+    startBtn.addEventListener('click', startQuestionFlow);
     viewPastDataBtn.addEventListener('click', showPastData);
-    newEntryBtn.addEventListener('click', showForm);
-    backToFormBtn.addEventListener('click', showForm);
+    newEntryBtn.addEventListener('click', startQuestionFlow);
+    backToSummaryBtn.addEventListener('click', showSummary);
     closeErrorBtn.addEventListener('click', hideErrorModal);
     errorModal.addEventListener('click', (e) => {
         if (e.target === errorModal) {
@@ -123,191 +182,104 @@ function updateUserInfo() {
     }
 }
 
-async function checkTodaySubmission() {
-    try {
-        const today = new Date().toISOString().split('T')[0];
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=checkToday&email=${encodeURIComponent(currentUser.email)}&date=${today}`);
-        const result = await response.json();
-        
-        if (result.exists) {
-            todayData = result.data;
-            showTodaySubmitted();
-        } else {
-            showForm();
-        }
-    } catch (error) {
-        console.error('Error checking today submission:', error);
-        showForm();
-    }
-}
-
-async function handleFormSubmit(e) {
-    e.preventDefault();
+function setGreeting() {
+    const hour = new Date().getHours();
+    let greeting = '';
     
-    const formData = new FormData(habitForm);
-    const data = {
-        userEmail: currentUser.email,
-        userName: currentUser.displayName || currentUser.email,
-        date: new Date().toISOString().split('T')[0],
-        wakeTime: formData.get('wakeTime'),
-        caffeine: formData.get('caffeine'),
-        bowelMovement: formData.get('bowelMovement'),
-        exercise: formData.get('exercise'),
-        headache: formData.get('headache'),
-        waterIntake: parseInt(formData.get('waterIntake')),
-        sleepHours: parseFloat(formData.get('sleepHours'))
-    };
-
-    try {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Submitting...';
-
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            todayData = data;
-            showSummary(data);
-        } else {
-            throw new Error(result.error || 'Failed to submit data');
-        }
-    } catch (error) {
-        console.error('Submission error:', error);
-        showError('Failed to submit data. Please try again.');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Today\'s Data';
+    if (hour < 12) {
+        greeting = 'Good Morning!';
+    } else if (hour < 17) {
+        greeting = 'Good Afternoon!';
+    } else if (hour < 21) {
+        greeting = 'Good Evening!';
+    } else {
+        greeting = 'Good Night!';
     }
+    
+    greetingText.textContent = greeting;
 }
 
-function showForm() {
-    dailyForm.classList.remove('hidden');
-    dailySummary.classList.add('hidden');
-    pastDataView.classList.add('hidden');
-    submissionStatus.textContent = '';
-    submissionStatus.className = 'status-badge';
-    habitForm.reset();
+function startQuestionFlow() {
+    currentQuestionIndex = 0;
+    currentAnswers = {};
+    showQuestion();
 }
 
-function showTodaySubmitted() {
-    showSummary(todayData);
-    submissionStatus.textContent = 'Submitted';
-    submissionStatus.className = 'status-badge submitted';
+function showQuestion() {
+    const question = wellnessQuestions[currentQuestionIndex];
+    const progress = ((currentQuestionIndex + 1) / wellnessQuestions.length) * 100;
+    
+    // Update progress bar
+    progressFill.style.width = `${progress}%`;
+    
+    // Show question screen
+    document.getElementById('welcome-screen').classList.add('hidden');
+    questionScreen.classList.remove('hidden');
+    summaryScreen.classList.add('hidden');
+    pastDataScreen.classList.add('hidden');
+    
+    // Set question text
+    questionText.textContent = question.text;
+    
+    // Create answer bubbles
+    answerBubbles.innerHTML = '';
+    question.options.forEach((option, index) => {
+        const bubble = document.createElement('div');
+        bubble.className = 'answer-bubble';
+        bubble.textContent = option;
+        bubble.addEventListener('click', () => selectAnswer(option));
+        answerBubbles.appendChild(bubble);
+    });
 }
 
-function showSummary(data) {
-    dailyForm.classList.add('hidden');
-    dailySummary.classList.remove('hidden');
-    pastDataView.classList.add('hidden');
+function selectAnswer(answer) {
+    const question = wellnessQuestions[currentQuestionIndex];
+    currentAnswers[question.id] = answer;
+    
+    // Add visual feedback
+    const bubbles = answerBubbles.querySelectorAll('.answer-bubble');
+    bubbles.forEach(bubble => bubble.classList.remove('selected'));
+    event.target.classList.add('selected');
+    
+    // Move to next question after a short delay
+    setTimeout(() => {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < wellnessQuestions.length) {
+            showQuestion();
+        } else {
+            showSummary();
+        }
+    }, 500);
+}
 
-    summaryContent.innerHTML = `
-        <div class="summary-item">
-            <span class="summary-label">Wake Time</span>
-            <span class="summary-value">${data.wakeTime}</span>
-        </div>
-        <div class="summary-item">
-            <span class="summary-label">Caffeine</span>
-            <span class="summary-value">${data.caffeine === 'yes' ? 'Yes' : 'No'}</span>
-        </div>
-        <div class="summary-item">
-            <span class="summary-label">Bowel Movement</span>
-            <span class="summary-value">${data.bowelMovement === 'yes' ? 'Yes' : 'No'}</span>
-        </div>
-        <div class="summary-item">
-            <span class="summary-label">Exercise</span>
-            <span class="summary-value">${data.exercise === 'yes' ? 'Yes' : 'No'}</span>
-        </div>
-        <div class="summary-item">
-            <span class="summary-label">Headache</span>
-            <span class="summary-value">${data.headache === 'yes' ? 'Yes' : 'No'}</span>
-        </div>
-        <div class="summary-item">
-            <span class="summary-label">Water Intake</span>
-            <span class="summary-value">${data.waterIntake} glasses</span>
-        </div>
-        <div class="summary-item">
-            <span class="summary-label">Sleep Hours</span>
-            <span class="summary-value">${data.sleepHours} hours</span>
+function showSummary() {
+    questionScreen.classList.add('hidden');
+    summaryScreen.classList.remove('hidden');
+    
+    const summaryHTML = Object.entries(currentAnswers).map(([key, value]) => {
+        const question = wellnessQuestions.find(q => q.id === key);
+        return `
+            <div class="summary-item">
+                <span class="summary-label">${question.text}</span>
+                <span class="summary-value">${value}</span>
+            </div>
+        `;
+    }).join('');
+    
+    summaryContent.innerHTML = summaryHTML;
+}
+
+function showPastData() {
+    summaryScreen.classList.add('hidden');
+    pastDataScreen.classList.remove('hidden');
+    
+    // For now, show a placeholder since we're not using the Apps Script
+    pastDataContent.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.7);">
+            <p>Past data feature coming soon!</p>
+            <p>Your wellness journey data will be stored here.</p>
         </div>
     `;
-}
-
-async function showPastData() {
-    try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=getPastData&email=${encodeURIComponent(currentUser.email)}`);
-        const result = await response.json();
-
-        if (result.success) {
-            pastData = result.data;
-            displayPastData(pastData);
-        } else {
-            throw new Error(result.error || 'Failed to fetch past data');
-        }
-    } catch (error) {
-        console.error('Error fetching past data:', error);
-        showError('Failed to load past data. Please try again.');
-    }
-}
-
-function displayPastData(data) {
-    dailyForm.classList.add('hidden');
-    dailySummary.classList.add('hidden');
-    pastDataView.classList.remove('hidden');
-
-    if (data.length === 0) {
-        pastDataContent.innerHTML = '<p style="text-align: center; color: #666; padding: 40px 0;">No past data found.</p>';
-        return;
-    }
-
-    const dataHTML = data.map(entry => `
-        <div class="data-entry">
-            <h4>${new Date(entry.date).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            })}</h4>
-            <div class="data-grid">
-                <div class="data-item">
-                    <span class="data-label">Wake Time:</span>
-                    <span class="data-value">${entry.wakeTime}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Caffeine:</span>
-                    <span class="data-value">${entry.caffeine === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Bowel Movement:</span>
-                    <span class="data-value">${entry.bowelMovement === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Exercise:</span>
-                    <span class="data-value">${entry.exercise === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Headache:</span>
-                    <span class="data-value">${entry.headache === 'yes' ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Water Intake:</span>
-                    <span class="data-value">${entry.waterIntake} glasses</span>
-                </div>
-                <div class="data-item">
-                    <span class="data-label">Sleep Hours:</span>
-                    <span class="data-value">${entry.sleepHours} hours</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
-
-    pastDataContent.innerHTML = dataHTML;
 }
 
 function showError(message) {
@@ -319,4 +291,5 @@ function hideErrorModal() {
     errorModal.classList.add('hidden');
 }
 
+// Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
