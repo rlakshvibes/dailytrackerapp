@@ -1,5 +1,4 @@
 // Firebase Configuration
-// TODO: Replace with your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDbrboEJx7hOFSRO0l7QbJAJkjejoEUpb4",
   authDomain: "daily-tracker-f025c.firebaseapp.com",
@@ -11,7 +10,6 @@ const firebaseConfig = {
 };
 
 // Google Apps Script Web App URL
-// TODO: Replace with your deployed Apps Script URL
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnXNo3ioNBRYQuXfnNmbI98aavEH-0W176-H9qwKb8biEksZ6_6TeKv9lh113dFCA9/exec";
 
 // Initialize Firebase
@@ -189,8 +187,8 @@ async function handleFormSubmit(e) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
 
-        // Use JSONP approach
-        const result = await submitDataJSONP(data);
+        // Try multiple submission methods
+        let result = await tryMultipleSubmissionMethods(data);
 
         if (result.success) {
             todayData = data;
@@ -207,47 +205,131 @@ async function handleFormSubmit(e) {
     }
 }
 
-// JSONP function for submitting data
+// Try multiple submission methods
+async function tryMultipleSubmissionMethods(data) {
+    const methods = [
+        () => submitDataJSONP(data),
+        () => submitDataForm(data),
+        () => submitDataFetch(data)
+    ];
+
+    for (let i = 0; i < methods.length; i++) {
+        try {
+            console.log(`Trying submission method ${i + 1}...`);
+            const result = await methods[i]();
+            console.log(`Method ${i + 1} succeeded:`, result);
+            return result;
+        } catch (error) {
+            console.log(`Method ${i + 1} failed:`, error.message);
+            if (i === methods.length - 1) {
+                throw error; // All methods failed
+            }
+        }
+    }
+}
+
+// Method 1: JSONP submission
 function submitDataJSONP(data) {
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         const callbackName = 'jsonpCallback_' + Date.now();
         
-        console.log('Starting JSONP request with data:', data);
-        
         window[callbackName] = function(result) {
-            console.log('JSONP callback received:', result);
             delete window[callbackName];
             document.body.removeChild(script);
             resolve(result);
         };
         
-        // Use CORS proxy for JSONP
         const targetUrl = `${APPS_SCRIPT_URL}?callback=${callbackName}&data=${encodeURIComponent(JSON.stringify(data))}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        
-        console.log('JSONP URL:', proxyUrl);
+        const proxyUrl = `https://cors-anywhere.herokuapp.com/${targetUrl}`;
         
         script.src = proxyUrl;
-        script.onerror = function() {
-            console.error('Script load error');
+        script.onerror = () => {
             delete window[callbackName];
             document.body.removeChild(script);
-            reject(new Error('Script load failed'));
+            reject(new Error('JSONP failed'));
         };
         
         document.body.appendChild(script);
         
-        // Increase timeout to 30 seconds
         setTimeout(() => {
-            console.error('JSONP timeout after 30 seconds');
             delete window[callbackName];
             if (document.body.contains(script)) {
                 document.body.removeChild(script);
             }
-            reject(new Error('Timeout - Apps Script not responding'));
-        }, 30000);
+            reject(new Error('JSONP timeout'));
+        }, 15000);
     });
+}
+
+// Method 2: Form submission
+function submitDataForm(data) {
+    return new Promise((resolve, reject) => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = APPS_SCRIPT_URL;
+        form.target = 'hidden-iframe';
+        
+        const iframe = document.createElement('iframe');
+        iframe.name = 'hidden-iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        Object.keys(data).forEach(key => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = data[key];
+            form.appendChild(input);
+        });
+        
+        iframe.onload = function() {
+            try {
+                const response = iframe.contentDocument.body.textContent;
+                const result = JSON.parse(response);
+                document.body.removeChild(iframe);
+                document.body.removeChild(form);
+                resolve(result);
+            } catch (error) {
+                document.body.removeChild(iframe);
+                document.body.removeChild(form);
+                reject(new Error('Form submission failed'));
+            }
+        };
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        setTimeout(() => {
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+            if (document.body.contains(form)) {
+                document.body.removeChild(form);
+            }
+            reject(new Error('Form submission timeout'));
+        }, 15000);
+    });
+}
+
+// Method 3: Fetch with proxy
+async function submitDataFetch(data) {
+    const targetUrl = APPS_SCRIPT_URL;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+    
+    const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+        throw new Error('Fetch failed');
+    }
+    
+    return await response.json();
 }
 
 // Show form
@@ -348,4 +430,48 @@ function displayPastData(data) {
             <div class="data-grid">
                 <div class="data-item">
                     <span class="data-label">Wake Time:</span>
-                    <span class="data
+                    <span class="data-value">${entry.wakeTime}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Caffeine:</span>
+                    <span class="data-value">${entry.caffeine === 'yes' ? 'Yes' : 'No'}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Bowel Movement:</span>
+                    <span class="data-value">${entry.bowelMovement === 'yes' ? 'Yes' : 'No'}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Exercise:</span>
+                    <span class="data-value">${entry.exercise === 'yes' ? 'Yes' : 'No'}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Headache:</span>
+                    <span class="data-value">${entry.headache === 'yes' ? 'Yes' : 'No'}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Water Intake:</span>
+                    <span class="data-value">${entry.waterIntake} glasses</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Sleep Hours:</span>
+                    <span class="data-value">${entry.sleepHours} hours</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    pastDataContent.innerHTML = dataHTML;
+}
+
+// Error handling
+function showError(message) {
+    errorMessage.textContent = message;
+    errorModal.classList.remove('hidden');
+}
+
+function hideErrorModal() {
+    errorModal.classList.add('hidden');
+}
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', initApp);
