@@ -186,15 +186,8 @@ async function handleFormSubmit(e) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
 
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
+        // Use JSONP approach
+        const result = await submitDataJSONP(data);
 
         if (result.success) {
             todayData = data;
@@ -209,6 +202,30 @@ async function handleFormSubmit(e) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Today\'s Data';
     }
+}
+
+// JSONP function for submitting data
+function submitDataJSONP(data) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        const callbackName = 'jsonpCallback_' + Date.now();
+        
+        window[callbackName] = function(result) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            resolve(result);
+        };
+        
+        const url = `${APPS_SCRIPT_URL}?callback=${callbackName}&data=${encodeURIComponent(JSON.stringify(data))}`;
+        script.src = url;
+        document.body.appendChild(script);
+        
+        setTimeout(() => {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            reject(new Error('Timeout'));
+        }, 10000);
+    });
 }
 
 // Show form
@@ -378,16 +395,3 @@ function customizeHabits() {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
-
-// Service Worker for PWA functionality
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-                console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
-}
