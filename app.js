@@ -9,14 +9,11 @@ const firebaseConfig = {
   measurementId: "G-1TDE6QWYB4"
 };
 
-// Google Apps Script Web App URL
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnwrqlsSXaoajEDKUK-8DAYTQYO9AOgVYuLwH7Fa3_TW_gkdwxwn7yBVV9tQy5UtiS/exec";
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
-// DOM Elements
 const loadingScreen = document.getElementById('loading-screen');
 const authScreen = document.getElementById('auth-screen');
 const appScreen = document.getElementById('app-screen');
@@ -41,14 +38,11 @@ const errorModal = document.getElementById('error-modal');
 const errorMessage = document.getElementById('error-message');
 const closeErrorBtn = document.getElementById('close-error-btn');
 
-// App State
 let currentUser = null;
 let todayData = null;
 let pastData = [];
 
-// Initialize the app
 function initApp() {
-    // Set current date
     const today = new Date();
     currentDate.textContent = today.toLocaleDateString('en-US', { 
         weekday: 'long', 
@@ -57,41 +51,29 @@ function initApp() {
         day: 'numeric' 
     });
 
-    // Check authentication state
     auth.onAuthStateChanged((user) => {
         if (user) {
-            // User is signed in
             currentUser = user;
             showAppScreen();
             updateUserInfo();
             checkTodaySubmission();
         } else {
-            // User is signed out
             currentUser = null;
             showAuthScreen();
         }
         hideLoadingScreen();
     });
 
-    // Event listeners
     setupEventListeners();
 }
 
-// Setup event listeners
 function setupEventListeners() {
-    // Authentication
     googleSigninBtn.addEventListener('click', signInWithGoogle);
     signoutBtn.addEventListener('click', signOut);
-
-    // Form submission
     habitForm.addEventListener('submit', handleFormSubmit);
-
-    // Navigation
     viewPastDataBtn.addEventListener('click', showPastData);
     newEntryBtn.addEventListener('click', showForm);
     backToFormBtn.addEventListener('click', showForm);
-
-    // Error modal
     closeErrorBtn.addEventListener('click', hideErrorModal);
     errorModal.addEventListener('click', (e) => {
         if (e.target === errorModal) {
@@ -100,7 +82,6 @@ function setupEventListeners() {
     });
 }
 
-// Authentication functions
 async function signInWithGoogle() {
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
@@ -120,7 +101,6 @@ async function signOut() {
     }
 }
 
-// Screen management
 function showAuthScreen() {
     authScreen.classList.remove('hidden');
     appScreen.classList.add('hidden');
@@ -143,7 +123,6 @@ function updateUserInfo() {
     }
 }
 
-// Check if user has already submitted data for today
 async function checkTodaySubmission() {
     try {
         const today = new Date().toISOString().split('T')[0];
@@ -158,11 +137,10 @@ async function checkTodaySubmission() {
         }
     } catch (error) {
         console.error('Error checking today submission:', error);
-        showForm(); // Fallback to showing form
+        showForm();
     }
 }
 
-// Form handling
 async function handleFormSubmit(e) {
     e.preventDefault();
     
@@ -184,62 +162,31 @@ async function handleFormSubmit(e) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
 
-        // Create a form and submit it
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = APPS_SCRIPT_URL;
-        form.target = 'hidden-iframe';
-        
-        // Add data as hidden fields
-        Object.keys(data).forEach(key => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = data[key];
-            form.appendChild(input);
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
         });
-        
-        // Create hidden iframe
-        const iframe = document.createElement('iframe');
-        iframe.name = 'hidden-iframe';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        
-        // Handle response
-        iframe.onload = function() {
-            try {
-                const response = iframe.contentDocument.body.textContent;
-                const result = JSON.parse(response);
-                
-                if (result.success) {
-                    todayData = data;
-                    showSummary(data);
-                } else {
-                    throw new Error(result.error || 'Failed to submit data');
-                }
-            } catch (error) {
-                console.error('Submission error:', error);
-                showError('Failed to submit data. Please try again.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Today\'s Data';
-                document.body.removeChild(iframe);
-                document.body.removeChild(form);
-            }
-        };
-        
-        document.body.appendChild(form);
-        form.submit();
-        
+
+        const result = await response.json();
+
+        if (result.success) {
+            todayData = data;
+            showSummary(data);
+        } else {
+            throw new Error(result.error || 'Failed to submit data');
+        }
     } catch (error) {
         console.error('Submission error:', error);
         showError('Failed to submit data. Please try again.');
+    } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Today\'s Data';
     }
 }
 
-// Show form
 function showForm() {
     dailyForm.classList.remove('hidden');
     dailySummary.classList.add('hidden');
@@ -249,14 +196,12 @@ function showForm() {
     habitForm.reset();
 }
 
-// Show today's submitted data
 function showTodaySubmitted() {
     showSummary(todayData);
     submissionStatus.textContent = 'Submitted';
     submissionStatus.className = 'status-badge submitted';
 }
 
-// Show summary
 function showSummary(data) {
     dailyForm.classList.add('hidden');
     dailySummary.classList.remove('hidden');
@@ -294,7 +239,6 @@ function showSummary(data) {
     `;
 }
 
-// Show past data
 async function showPastData() {
     try {
         const response = await fetch(`${APPS_SCRIPT_URL}?action=getPastData&email=${encodeURIComponent(currentUser.email)}`);
@@ -312,7 +256,6 @@ async function showPastData() {
     }
 }
 
-// Display past data
 function displayPastData(data) {
     dailyForm.classList.add('hidden');
     dailySummary.classList.add('hidden');
@@ -367,7 +310,6 @@ function displayPastData(data) {
     pastDataContent.innerHTML = dataHTML;
 }
 
-// Error handling
 function showError(message) {
     errorMessage.textContent = message;
     errorModal.classList.remove('hidden');
@@ -377,5 +319,4 @@ function hideErrorModal() {
     errorModal.classList.add('hidden');
 }
 
-// Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
