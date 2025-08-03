@@ -2,7 +2,7 @@
 // Deploy this as a web app to handle API requests
 
 // Configuration
-const SPREADSHEET_ID = 'YOUR_GOOGLE_SPREADSHEET_ID'; // Replace with your Google Sheet ID
+const SPREADSHEET_ID = '1JKl_2VFyS55oB_sV39b2yuRinEtCyAERJvRZRQCFD_Q'; // User's actual Sheet ID
 const SHEET_NAME = 'HabitData';
 
 // Main function to handle web requests
@@ -19,20 +19,13 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Append data to Google Sheet
+    // Append data to sheet
     const success = appendToSheet(data);
     
-    if (success) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        message: 'Data saved successfully'
-      })).setMimeType(ContentService.MimeType.JSON);
-    } else {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'Failed to save data'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
+    return ContentService.createTextOutput(JSON.stringify({
+      success: success,
+      message: success ? 'Data saved successfully' : 'Failed to save data'
+    })).setMimeType(ContentService.MimeType.JSON);
     
   } catch (error) {
     console.error('Error in doPost:', error);
@@ -47,6 +40,24 @@ function doPost(e) {
 function doGet(e) {
   try {
     const params = e.parameter;
+    const callback = params.callback;
+    const data = params.data;
+    
+    if (callback && data) {
+      // Handle JSONP request
+      const jsonData = JSON.parse(data);
+      const success = appendToSheet(jsonData);
+      
+      const result = {
+        success: success,
+        message: success ? 'Data saved successfully' : 'Failed to save data'
+      };
+      
+      return ContentService.createTextOutput(`${callback}(${JSON.stringify(result)})`)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    // Handle regular GET requests
     const action = params.action;
     
     if (action === 'checkToday') {
@@ -101,43 +112,31 @@ function doGet(e) {
   }
 }
 
-// Append data to Google Sheet
+// Helper function to append data to the sheet
 function appendToSheet(data) {
   try {
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
     
-    // If sheet doesn't exist, create it with headers
     if (!sheet) {
+      // Create sheet if it doesn't exist
       createSheetWithHeaders();
     }
     
-    const sheetToUse = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+    const rowData = [
+      data.userEmail,
+      data.userName,
+      data.date,
+      data.wakeTime,
+      data.caffeine,
+      data.bowelMovement,
+      data.exercise,
+      data.headache,
+      data.waterIntake,
+      data.sleepHours,
+      new Date().toISOString() // Timestamp
+    ];
     
-    // Check if entry already exists for this user and date
-    const existingRow = findExistingRow(sheetToUse, data.userEmail, data.date);
-    
-    if (existingRow > 0) {
-      // Update existing row
-      updateRow(sheetToUse, existingRow, data);
-    } else {
-      // Append new row
-      const rowData = [
-        data.userEmail,
-        data.userName || data.userEmail,
-        data.date,
-        data.wakeTime || '',
-        data.caffeine || '',
-        data.bowelMovement || '',
-        data.exercise || '',
-        data.headache || '',
-        data.waterIntake || 0,
-        data.sleepHours || 0,
-        new Date().toISOString() // Timestamp
-      ];
-      
-      sheetToUse.appendRow(rowData);
-    }
-    
+    sheet.appendRow(rowData);
     return true;
     
   } catch (error) {
@@ -146,92 +145,30 @@ function appendToSheet(data) {
   }
 }
 
-// Create sheet with headers if it doesn't exist
+// Helper function to create sheet with headers
 function createSheetWithHeaders() {
-  try {
-    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = spreadsheet.insertSheet(SHEET_NAME);
-    
-    const headers = [
-      'User Email',
-      'User Name',
-      'Date',
-      'Wake Time',
-      'Caffeine',
-      'Bowel Movement',
-      'Exercise',
-      'Headache',
-      'Water Intake (glasses)',
-      'Sleep Hours',
-      'Timestamp'
-    ];
-    
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    
-    // Format headers
-    const headerRange = sheet.getRange(1, 1, 1, headers.length);
-    headerRange.setFontWeight('bold');
-    headerRange.setBackground('#4CAF50');
-    headerRange.setFontColor('white');
-    
-    // Auto-resize columns
-    for (let i = 1; i <= headers.length; i++) {
-      sheet.autoResizeColumn(i);
-    }
-    
-    // Freeze header row
-    sheet.setFrozenRows(1);
-    
-  } catch (error) {
-    console.error('Error creating sheet:', error);
-  }
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = spreadsheet.insertSheet(SHEET_NAME);
+  
+  const headers = [
+    'User Email',
+    'User Name', 
+    'Date',
+    'Wake Time',
+    'Caffeine',
+    'Bowel Movement',
+    'Exercise',
+    'Headache',
+    'Water Intake (glasses)',
+    'Sleep Hours',
+    'Timestamp'
+  ];
+  
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
 }
 
-// Find existing row for user and date
-function findExistingRow(sheet, email, date) {
-  try {
-    const data = sheet.getDataRange().getValues();
-    const emailCol = 0; // Column A
-    const dateCol = 2;  // Column C
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][emailCol] === email && data[i][dateCol] === date) {
-        return i + 1; // Return 1-based row number
-      }
-    }
-    
-    return 0; // Not found
-  } catch (error) {
-    console.error('Error finding existing row:', error);
-    return 0;
-  }
-}
-
-// Update existing row
-function updateRow(sheet, rowNum, data) {
-  try {
-    const rowData = [
-      data.userEmail,
-      data.userName || data.userEmail,
-      data.date,
-      data.wakeTime || '',
-      data.caffeine || '',
-      data.bowelMovement || '',
-      data.exercise || '',
-      data.headache || '',
-      data.waterIntake || 0,
-      data.sleepHours || 0,
-      new Date().toISOString() // Timestamp
-    ];
-    
-    sheet.getRange(rowNum, 1, 1, rowData.length).setValues([rowData]);
-    
-  } catch (error) {
-    console.error('Error updating row:', error);
-  }
-}
-
-// Check if user has submitted data for today
+// Helper function to check if user has already submitted data for today
 function checkTodaySubmission(email, date) {
   try {
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
@@ -241,23 +178,32 @@ function checkTodaySubmission(email, date) {
     }
     
     const data = sheet.getDataRange().getValues();
-    const emailCol = 0; // Column A
-    const dateCol = 2;  // Column C
+    const headers = data[0];
     
+    // Find the email and date columns
+    const emailCol = headers.indexOf('User Email');
+    const dateCol = headers.indexOf('Date');
+    
+    if (emailCol === -1 || dateCol === -1) {
+      return null;
+    }
+    
+    // Look for existing entry for today
     for (let i = 1; i < data.length; i++) {
-      if (data[i][emailCol] === email && data[i][dateCol] === date) {
+      const row = data[i];
+      if (row[emailCol] === email && row[dateCol] === date) {
         // Return the data in the expected format
         return {
-          userEmail: data[i][0],
-          userName: data[i][1],
-          date: data[i][2],
-          wakeTime: data[i][3],
-          caffeine: data[i][4],
-          bowelMovement: data[i][5],
-          exercise: data[i][6],
-          headache: data[i][7],
-          waterIntake: data[i][8],
-          sleepHours: data[i][9]
+          userEmail: row[emailCol],
+          userName: row[headers.indexOf('User Name')],
+          date: row[dateCol],
+          wakeTime: row[headers.indexOf('Wake Time')],
+          caffeine: row[headers.indexOf('Caffeine')],
+          bowelMovement: row[headers.indexOf('Bowel Movement')],
+          exercise: row[headers.indexOf('Exercise')],
+          headache: row[headers.indexOf('Headache')],
+          waterIntake: row[headers.indexOf('Water Intake (glasses)')],
+          sleepHours: row[headers.indexOf('Sleep Hours')]
         };
       }
     }
@@ -270,7 +216,7 @@ function checkTodaySubmission(email, date) {
   }
 }
 
-// Get past data for a user
+// Helper function to get past data for a user
 function getPastData(email) {
   try {
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
@@ -280,22 +226,32 @@ function getPastData(email) {
     }
     
     const data = sheet.getDataRange().getValues();
-    const emailCol = 0; // Column A
+    const headers = data[0];
+    
+    // Find the email column
+    const emailCol = headers.indexOf('User Email');
+    
+    if (emailCol === -1) {
+      return [];
+    }
+    
     const pastData = [];
     
+    // Get all rows for this user
     for (let i = 1; i < data.length; i++) {
-      if (data[i][emailCol] === email) {
+      const row = data[i];
+      if (row[emailCol] === email) {
         pastData.push({
-          userEmail: data[i][0],
-          userName: data[i][1],
-          date: data[i][2],
-          wakeTime: data[i][3],
-          caffeine: data[i][4],
-          bowelMovement: data[i][5],
-          exercise: data[i][6],
-          headache: data[i][7],
-          waterIntake: data[i][8],
-          sleepHours: data[i][9]
+          userEmail: row[emailCol],
+          userName: row[headers.indexOf('User Name')],
+          date: row[headers.indexOf('Date')],
+          wakeTime: row[headers.indexOf('Wake Time')],
+          caffeine: row[headers.indexOf('Caffeine')],
+          bowelMovement: row[headers.indexOf('Bowel Movement')],
+          exercise: row[headers.indexOf('Exercise')],
+          headache: row[headers.indexOf('Headache')],
+          waterIntake: row[headers.indexOf('Water Intake (glasses)')],
+          sleepHours: row[headers.indexOf('Sleep Hours')]
         });
       }
     }
@@ -308,25 +264,5 @@ function getPastData(email) {
   } catch (error) {
     console.error('Error getting past data:', error);
     return [];
-  }
-}
-
-// Utility function to test the setup
-function testSetup() {
-  try {
-    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = spreadsheet.getSheetByName(SHEET_NAME);
-    
-    if (!sheet) {
-      createSheetWithHeaders();
-      console.log('Sheet created successfully');
-    } else {
-      console.log('Sheet already exists');
-    }
-    
-    console.log('Setup test completed');
-    
-  } catch (error) {
-    console.error('Setup test failed:', error);
   }
 }
